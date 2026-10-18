@@ -19,6 +19,9 @@
     "groq-sdk": "^0.15.0",
     "mongoose": "^8.10.1"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "devDependencies": {
     "mongodb-memory-server": "^10.1.4",
     "supertest": "^7.0.0"

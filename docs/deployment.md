@@ -55,7 +55,49 @@ AI_TIMEOUT_MS=15000
 `CLIENT_ORIGIN` accepts a comma-separated list if you need several origins (e.g. preview URLs).
 Requests without an `Origin` header (curl, Postman, health checks) are allowed.
 
-## 5. Frontend on Render (Static Site)
+## 5. Frontend on Vercel (recommended)
+
+The repository root contains `vercel.json`, so you can import the repo as-is:
+
+```json
+{
+  "framework": "vite",
+  "installCommand": "npm --prefix client ci",
+  "buildCommand": "npm --prefix client run build",
+  "outputDirectory": "client/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+| Setting | Value |
+| --- | --- |
+| Framework preset | Vite (detected from `vercel.json`) |
+| Root directory | repository root (leave empty) |
+| Install command | `npm --prefix client ci` |
+| Build command | `npm --prefix client run build` |
+| Output directory | `client/dist` |
+| Environment variable | `VITE_API_URL=https://your-backend.onrender.com` |
+
+The rewrite makes deep links such as `/tasks` and `/ai-planner` load the SPA instead of a 404.
+`VITE_API_URL` is baked into the bundle at build time, so set it **before** the first deploy and
+redeploy after changing it. Never put server secrets in Vercel environment variables that start
+with `VITE_`.
+
+Then add the Vercel URL to the backend's `CLIENT_ORIGIN` (comma-separated if you also use preview
+deployments, e.g. `https://app.vercel.app,https://app-git-main-you.vercel.app`).
+
+Deploy from the CLI instead of the dashboard if you prefer:
+
+```bash
+npm i -g vercel
+vercel            # preview
+vercel --prod     # production
+```
+
+> The Express API cannot run on Vercel as-is (it is a long-running Node server, not a serverless
+> function). Keep the backend on Render and let Vercel host only the static frontend.
+
+### Alternative: Frontend on Render (Static Site)
 
 | Setting | Value |
 | --- | --- |
@@ -64,14 +106,7 @@ Requests without an `Origin` header (curl, Postman, health checks) are allowed.
 | Publish directory | `dist` |
 | Redirect / rewrite | `/*` -> `/index.html` (SPA routing) |
 
-Environment variable:
-
-```
-VITE_API_URL=https://your-backend.onrender.com
-```
-
-Vite bakes `VITE_*` values into the bundle at build time, so change it and redeploy after the
-backend URL is known. Do not put secrets in it.
+Environment variable: `VITE_API_URL=https://your-backend.onrender.com`.
 
 ### Alternative: single-service deployment
 
@@ -79,6 +114,24 @@ The Express app does not serve the SPA build by default. If you prefer one Rende
 static file serving to `server/src/app.js` (e.g. `express.static` on `client/dist` plus a
 catch-all `res.sendFile('index.html')`) and keep `VITE_API_URL` empty so the frontend calls
 `/api` on the same origin. Document whatever you choose.
+
+## 5b. Build warnings you may see
+
+**`Detected "engines": { "node": ">=20.0.0" } ... will automatically upgrade`**
+Fixed: all three `package.json` files now pin `"engines": { "node": "22.x" }`. A range like
+`>=20` lets a host jump to an untested major version; `22.x` keeps Node 22 LTS and never rolls
+forward automatically. If you intentionally want a different major, change it in one place per
+package.
+
+**`npm warn Unknown env config "cache-dir"`**
+Cosmetic, and not caused by this repository (there is no `.npmrc` here). The build image sets
+`npm_config_cache_dir`, and older npm versions (10.x and below) warn because the supported key is
+`cache`, not `cache-dir`. It disappears with npm 11+, so either ignore it or:
+
+- remove `NPM_CONFIG_CACHE_DIR` from the project's environment variables if you added it yourself,
+- or set the supported spelling `NPM_CONFIG_CACHE=/vercel/.npm` instead.
+
+It never fails a build: the install, build, and deploy all continue normally.
 
 ## 6. Verification after deploy
 

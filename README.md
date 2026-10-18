@@ -124,7 +124,7 @@ More detail: [`docs/architecture.md`](docs/architecture.md).
 
 ## 4. Prerequisites
 
-- Node.js **20 LTS or newer** (`node -v`)
+- Node.js **22 LTS** (recommended; `engines` is pinned to `22.x` so hosts like Vercel/Render pick a stable major)
 - npm 10+
 - A MongoDB connection string (Atlas free tier is fine) - optional for a first run, see below
 - A Groq API key for the AI planner (https://console.groq.com/keys)
@@ -350,7 +350,7 @@ Once active it runs on every push to `main`, every pull request targeting `main`
 
 Notes:
 
-- Both jobs use Node.js 20 and npm caching keyed on the respective `package-lock.json`.
+- Both jobs use Node.js 22 and npm caching keyed on the respective `package-lock.json`.
 - The MongoDB binary used by `mongodb-memory-server` is cached across runs, keyed on
   `server/package-lock.json`, so integration tests do not re-download ~80 MB every time.
 - No repository secrets are required: the server tests mock the AI provider, so CI passes without
@@ -392,6 +392,9 @@ status, unexpected field, invalid ID, nonexistent task, missing AI description.
 | CORS error in the browser | origin mismatch | set `CLIENT_ORIGIN` to the exact frontend origin |
 | `EADDRINUSE :3000` | port already in use | stop the other process or change `PORT` |
 | PowerShell blocks `npm` | execution policy | run `Set-ExecutionPolicy -Scope Process RemoteSigned` |
+| Vercel: `engines node will automatically upgrade` | `engines` used a `>=` range | already fixed: `engines.node` is pinned to `22.x` in all packages |
+| Vercel: `npm warn Unknown env config "cache-dir"` | build image sets `npm_config_cache_dir`; npm 10 warns | harmless; use npm 11+ or set `NPM_CONFIG_CACHE` instead (see `docs/deployment.md` §5b) |
+| Vercel: deep links 404 | no SPA rewrite | `vercel.json` at the repo root already rewrites `/(.*)` to `/index.html` |
 | Tailwind classes do nothing | wrong Tailwind setup | this project uses v4 via `@tailwindcss/vite`; do not add a v3 `tailwind.config.js` |
 
 Logs to check: server terminal (startup, database, provider errors) and the browser dev console.
@@ -400,15 +403,20 @@ Logs to check: server terminal (startup, database, provider errors) and the brow
 
 ## 15. Deployment
 
-Step-by-step Render instructions (backend web service + static frontend, env vars, Atlas network
-access, CORS, SPA rewrite, verification commands): [`docs/deployment.md`](docs/deployment.md).
+Step-by-step instructions for Render (backend web service) and Vercel (frontend static site), plus
+env vars, Atlas network access, CORS, SPA rewrites and verification commands:
+[`docs/deployment.md`](docs/deployment.md).
 
 Quick summary:
 
-- Backend: root dir `server`, build `npm install`, start `npm start`, health check `/api/health`
-- Frontend: root dir `client`, build `npm install && npm run build`, publish `dist`, rewrite `/*`
-  to `/index.html`, set `VITE_API_URL` to the backend URL
-- Set `MONGODB_URI`, `GROQ_API_KEY`, `GROQ_MODEL`, `CLIENT_ORIGIN`, `NODE_ENV=production` on the backend
+- **Frontend (Vercel):** the repository root contains `vercel.json`, so deploying the repo root
+  builds `client/` and serves `client/dist` with an SPA rewrite. Set `VITE_API_URL` to the backend
+  URL in the Vercel project.
+- **Backend (Render):** root dir `server`, build `npm install`, start `npm start`, health check
+  `/api/health`; set `MONGODB_URI`, `GROQ_API_KEY`, `GROQ_MODEL`, `CLIENT_ORIGIN`,
+  `NODE_ENV=production`.
+- `engines.node` is pinned to `22.x` in all three `package.json` files so hosting platforms select a
+  stable major instead of auto-upgrading to the next Node release.
 
 ---
 
@@ -442,6 +450,7 @@ Confirmed by running the commands locally:
 | Vite `/api` dev proxy | `curl http://localhost:5173/api/health` | proxied correctly |
 | CI workflow definition | `docs/ci/github-actions-ci.yml` | valid YAML, runs the same commands verified locally; **not yet active** (token lacks the `workflows` permission — activation steps in §12) |
 | Local CI mirror | `npm run ci` | lint → 27/27 server tests → 31/31 client tests → production build, all pass |
+| Vercel frontend config | `vercel.json` + `npm --prefix client run build` | config validated (JSON + local build of exactly that command); no live Vercel deploy performed |
 
 Not verified here (no credentials / environment limits):
 
