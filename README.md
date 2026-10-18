@@ -1,5 +1,7 @@
 # FlowTask AI - Full-Stack AI Task Manager
 
+[![CI](https://github.com/Mubashir-Ahmed27/AI-Task-Manager/actions/workflows/ci.yml/badge.svg)](https://github.com/Mubashir-Ahmed27/AI-Task-Manager/actions/workflows/ci.yml)
+
 A production-minded task manager with a polished React dashboard and an AI planner that turns a
 free-text goal into a structured, validated action plan.
 
@@ -312,7 +314,54 @@ What the tests cover:
 
 ---
 
-## 12. Postman
+## 12. Continuous integration
+
+The workflow is versioned at [`docs/ci/github-actions-ci.yml`](docs/ci/github-actions-ci.yml). It is
+**not yet active** because the automation token used for this repository cannot create files under
+`.github/workflows/` (GitHub requires the special `workflows` permission for that path). Activate it
+with either option below — it takes about a minute:
+
+**Option A — GitHub web UI (no extra tooling)**
+
+1. Open the repository → **Add file → Create new file**.
+2. Name it `.github/workflows/ci.yml`.
+3. Paste the contents of `docs/ci/github-actions-ci.yml`, then **Commit changes**.
+
+**Option B — local clone with a personal token**
+
+```powershell
+mkdir .github/workflows
+Copy-Item docs/ci/github-actions-ci.yml .github/workflows/ci.yml
+git add .github/workflows/ci.yml
+git commit -m "ci: activate GitHub Actions workflow"
+git push
+```
+
+Once active it runs on every push to `main`, every pull request targeting `main`, and on demand
+(`workflow_dispatch`):
+
+| Job | Steps |
+| --- | --- |
+| `server` | `npm ci` → `npm run lint` → `npm test` (27 tests, in-memory MongoDB, cached binary) |
+| `client` | `npm ci` → `npm run lint` → `npm test` (31 tests) → `npm run build` → uploads `client-dist` |
+
+Notes:
+
+- Both jobs use Node.js 20 and npm caching keyed on the respective `package-lock.json`.
+- The MongoDB binary used by `mongodb-memory-server` is cached across runs, keyed on
+  `server/package-lock.json`, so integration tests do not re-download ~80 MB every time.
+- No repository secrets are required: the server tests mock the AI provider, so CI passes without
+  `GROQ_API_KEY` or a real database.
+- The workflow file was verified to be valid YAML locally, and every command it runs passes locally
+  (`npm test`, `npm run lint`, `npm run build`), but the first GitHub-hosted run will only happen
+  after the file is added under `.github/workflows/`.
+- To require green CI before merging, enable branch protection on `main`:
+  **Settings → Branches → Add branch protection rule → Require status checks to pass**, then select
+  `Server (lint + API tests)` and `Client (lint + tests + build)`.
+
+---
+
+## 13. Postman
 
 1. Open Postman -> **Import** -> `postman/ai-task-manager.collection.json`.
 2. Import `postman/environment.example.json` and select it (or just use the collection variables).
@@ -326,7 +375,7 @@ status, unexpected field, invalid ID, nonexistent task, missing AI description.
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
@@ -345,7 +394,7 @@ Logs to check: server terminal (startup, database, provider errors) and the brow
 
 ---
 
-## 14. Deployment
+## 15. Deployment
 
 Step-by-step Render instructions (backend web service + static frontend, env vars, Atlas network
 access, CORS, SPA rewrite, verification commands): [`docs/deployment.md`](docs/deployment.md).
@@ -359,7 +408,7 @@ Quick summary:
 
 ---
 
-## 15. Security notes
+## 16. Security notes
 
 - Secrets live only in server environment variables; `.env` files are git-ignored.
 - Vite variables are public by definition - no AI keys ever reach the browser.
@@ -374,7 +423,7 @@ Quick summary:
 
 ---
 
-## 16. Verification status
+## 17. Verification status
 
 Confirmed by running the commands locally:
 
@@ -387,6 +436,7 @@ Confirmed by running the commands locally:
 | Server boot + CRUD over HTTP | `node src/server.js` + curl | health, create, list, update, delete verified |
 | Postman collection | `newman run postman/ai-task-manager.collection.json` | 13 requests, 28 assertions, 0 failures |
 | Vite `/api` dev proxy | `curl http://localhost:5173/api/health` | proxied correctly |
+| CI workflow definition | `docs/ci/github-actions-ci.yml` | valid YAML, runs the same commands verified locally; **not yet active** (token lacks the `workflows` permission — activation steps in §12) |
 
 Not verified here (no credentials / environment limits):
 
@@ -398,7 +448,7 @@ Not verified here (no credentials / environment limits):
 - Full browser automation (Chromium could not launch in this sandbox due to missing system
   libraries). The UI is covered by jsdom component tests plus manual API verification.
 
-## 17. Next recommended improvement
+## 18. Next recommended improvement
 
 Add authentication (JWT or session-based) and scope every task to a `ownerId`, then add pagination
 once a user can have hundreds of tasks. After that, a natural follow-up is persisting AI plan steps

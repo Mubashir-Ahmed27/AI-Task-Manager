@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test \"tests/**/*.test.js\"",
-    "test:watch": "node --test --watch \"tests/**/*.test.js\"",
+    "test": "node --test tests/unit/task-validation.test.js tests/unit/ai-validation.test.js tests/integration/api.test.js tests/integration/ai-api.test.js",
+    "test:watch": "node --test --watch tests/unit/task-validation.test.js tests/unit/ai-validation.test.js tests/integration/api.test.js tests/integration/ai-api.test.js",
     "lint": "node --check src/server.js && node --check src/app.js"
   },
   "dependencies": {
