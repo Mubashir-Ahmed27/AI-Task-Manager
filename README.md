@@ -296,7 +296,10 @@ npm run test:server   # Node test runner + Supertest (in-memory MongoDB, AI mock
 npm run test:client   # Vitest + Testing Library
 npm run lint          # ESLint (client) + syntax check (server)
 npm run build         # production frontend build
+npm run ci            # everything the CI workflow runs, in order: lint -> test -> build
 ```
+
+`npm run ci` mirrors `.github/workflows/ci.yml` locally, so you can catch a failure before pushing.
 
 The backend suite needs no API key: the AI provider is injected with a fake, and the database is an
 in-memory MongoDB instance created per test file. No production database is ever touched.
@@ -355,6 +358,7 @@ Notes:
 - The workflow file was verified to be valid YAML locally, and every command it runs passes locally
   (`npm test`, `npm run lint`, `npm run build`), but the first GitHub-hosted run will only happen
   after the file is added under `.github/workflows/`.
+- `npm run ci` at the repository root runs the same sequence locally (lint → tests → build).
 - To require green CI before merging, enable branch protection on `main`:
   **Settings → Branches → Add branch protection rule → Require status checks to pass**, then select
   `Server (lint + API tests)` and `Client (lint + tests + build)`.
@@ -437,6 +441,7 @@ Confirmed by running the commands locally:
 | Postman collection | `newman run postman/ai-task-manager.collection.json` | 13 requests, 28 assertions, 0 failures |
 | Vite `/api` dev proxy | `curl http://localhost:5173/api/health` | proxied correctly |
 | CI workflow definition | `docs/ci/github-actions-ci.yml` | valid YAML, runs the same commands verified locally; **not yet active** (token lacks the `workflows` permission — activation steps in §12) |
+| Local CI mirror | `npm run ci` | lint → 27/27 server tests → 31/31 client tests → production build, all pass |
 
 Not verified here (no credentials / environment limits):
 
