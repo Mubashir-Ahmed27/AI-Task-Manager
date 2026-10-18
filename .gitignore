@@ -36,6 +36,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Vercel CLI metadata
+.vercel/
+
 # Testing & coverage
 coverage/
 .nyc_output/
