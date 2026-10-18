@@ -60,4 +60,27 @@ describe('apiClient.request', () => {
 
     await expect(request('/api/tasks')).rejects.toBeInstanceOf(ApiError);
   });
+
+  it('explains a 405 from a static host (Vercel) instead of showing a raw error', async () => {
+    fetch.mockResolvedValue(new Response('', { status: 405 }));
+
+    await expect(request('/api/tasks', { method: 'POST', body: { title: 'A' } })).rejects.toMatchObject(
+      {
+        name: 'ApiError',
+        status: 405,
+        code: 'API_NOT_REACHABLE',
+      }
+    );
+  });
+
+  it('explains an HTML page returned from an API URL (SPA rewrite fallback)', async () => {
+    fetch.mockResolvedValue(
+      new Response('<!doctype html><html><body>app</body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      })
+    );
+
+    await expect(request('/api/tasks')).rejects.toThrow(/VITE_API_URL/);
+  });
 });
