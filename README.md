@@ -7,7 +7,7 @@ free-text goal into a structured, validated action plan.
 
 - **Backend:** Node.js + Express + Mongoose + MongoDB, Groq for planning
 - **Frontend:** React 19 + Vite + Tailwind CSS v4 + GSAP + React Router + Lucide icons
-- **Quality:** 27 backend tests (unit + HTTP integration), 31 frontend tests, ESLint, production build,
+- **Quality:** 27 backend tests (unit + HTTP integration), 33 frontend tests, ESLint, production build,
   Postman collection
 
 > AI plans are generated suggestions, not guarantees. Always review them before committing.
@@ -346,7 +346,7 @@ Once active it runs on every push to `main`, every pull request targeting `main`
 | Job | Steps |
 | --- | --- |
 | `server` | `npm ci` → `npm run lint` → `npm test` (27 tests, in-memory MongoDB, cached binary) |
-| `client` | `npm ci` → `npm run lint` → `npm test` (31 tests) → `npm run build` → uploads `client-dist` |
+| `client` | `npm ci` → `npm run lint` → `npm test` (33 tests) → `npm run build` → uploads `client-dist` |
 
 Notes:
 
@@ -395,6 +395,7 @@ status, unexpected field, invalid ID, nonexistent task, missing AI description.
 | Vercel: `engines node will automatically upgrade` | `engines` used a `>=` range | already fixed: `engines.node` is pinned to `22.x` in all packages |
 | Vercel: `npm warn Unknown env config "cache-dir"` | build image sets `npm_config_cache_dir`; npm 10 warns | harmless; use npm 11+ or set `NPM_CONFIG_CACHE` instead (see `docs/deployment.md` §5b) |
 | Vercel: deep links 404 | no SPA rewrite | `vercel.json` at the repo root already rewrites `/(.*)` to `/index.html` |
+| UI shows `405` / "reached the static site host" | the browser is calling the Vercel domain, not the API (`VITE_API_URL` unset or pointing at the frontend) | set `VITE_API_URL` to the backend URL in Vercel, then **redeploy** (Vite bakes it at build time). See `docs/deployment.md` §7 |
 | Tailwind classes do nothing | wrong Tailwind setup | this project uses v4 via `@tailwindcss/vite`; do not add a v3 `tailwind.config.js` |
 
 Logs to check: server terminal (startup, database, provider errors) and the browser dev console.
@@ -442,14 +443,14 @@ Confirmed by running the commands locally:
 | Check | Command | Result |
 | --- | --- | --- |
 | Backend unit + integration tests | `npm --prefix server test` | **27 passing**, 0 failing |
-| Frontend unit/component tests | `npm --prefix client test` | **31 passing**, 0 failing |
+| Frontend unit/component tests | `npm --prefix client test` | **33 passing**, 0 failing |
 | ESLint | `npm --prefix client run lint` | clean (0 errors, 0 warnings) |
 | Production build | `npm --prefix client run build` | succeeds (~396 kB JS / 40 kB CSS, gzip ~129 kB / 7.6 kB) |
 | Server boot + CRUD over HTTP | `node src/server.js` + curl | health, create, list, update, delete verified |
 | Postman collection | `newman run postman/ai-task-manager.collection.json` | 13 requests, 28 assertions, 0 failures |
 | Vite `/api` dev proxy | `curl http://localhost:5173/api/health` | proxied correctly |
 | CI workflow definition | `docs/ci/github-actions-ci.yml` | valid YAML, runs the same commands verified locally; **not yet active** (token lacks the `workflows` permission — activation steps in §12) |
-| Local CI mirror | `npm run ci` | lint → 27/27 server tests → 31/31 client tests → production build, all pass |
+| Local CI mirror | `npm run ci` | lint → 27/27 server tests → 33/33 client tests → production build, all pass |
 | Vercel frontend config | `vercel.json` + `npm --prefix client run build` | config validated (JSON + local build of exactly that command); no live Vercel deploy performed |
 
 Not verified here (no credentials / environment limits):

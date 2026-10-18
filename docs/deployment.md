@@ -147,12 +147,66 @@ curl -X POST https://your-backend.onrender.com/api/tasks \
 Then in the browser: open the frontend, create/edit/delete a task, hard-refresh to confirm the
 data came from MongoDB, and generate one AI plan.
 
-## 7. Production checklist
+## 7. Troubleshooting deployments
+
+### "405 Method Not Allowed" / API calls fail on Vercel
+
+Symptom: every page shows an error, DevTools shows `405 (Method Not Allowed)` for `POST /api/tasks`,
+or the response body is the app's HTML instead of JSON.
+
+Cause: the browser is calling **the static frontend host** (`https://your-app.vercel.app/api/...`)
+instead of the Express backend. Vercel serves static files only, so a `POST` to that path returns
+405 and a `GET` falls through the SPA rewrite to `index.html`. Requests without `VITE_API_URL` are
+sent to the current origin, which is exactly this case.
+
+Diagnose in 10 seconds:
+
+```bash
+curl -i https://your-app.vercel.app/api/health
+# HTML (starting with <!doctype html>) or 405  -> the API is not on this host
+curl -i https://your-backend.onrender.com/api/health
+# {"success":true,...}                          -> the API itself is fine
+```
+
+Fix:
+
+1. Vercel → Project → **Settings → Environment Variables** → add
+   `VITE_API_URL = https://your-backend.onrender.com` (no trailing slash, correct scheme).
+2. **Redeploy.** `VITE_*` values are inlined at build time, so an existing deployment keeps calling
+   the old URL until it is rebuilt (`Deployments → ⋯ → Redeploy`, untick "use existing build cache").
+3. Confirm the value made it into the bundle:
+   ```bash
+   grep -ro "https://[a-z0-9.-]*onrender.com" client/dist/assets | head -1
+   ```
+4. On the backend, set `CLIENT_ORIGIN=https://your-app.vercel.app` (comma-separated for previews) and
+   redeploy it so CORS allows the browser origin.
+
+The frontend now detects this situation and shows an actionable message ("The request reached the
+static site host instead of the API…") instead of a raw 405.
+
+### Hosting the API on Vercel?
+
+A plain Express server is a long-running process; Vercel's static/edge hosting cannot run it. Options:
+
+- **Recommended:** keep the API on Render (or Fly.io or Railway) and point `VITE_API_URL` at it.
+- Advanced: add a serverless adapter (`api/[...path].js` exporting a handler that reuses one Mongoose
+  connection) and install the server dependencies in the build. That works, but serverless cold
+  starts and function time limits (10 s on Hobby, less than our 15 s AI timeout) make it a poor fit
+  for this project.
+
+### CORS error instead of 405
+
+`blocked by CORS policy` means the request reached the correct backend but the browser origin is not
+allowed. Add the frontend origin to `CLIENT_ORIGIN` on the backend and redeploy it.
+
+## 8. Production checklist
 
 - [ ] `MONGODB_URI` set and Atlas network access configured
 - [ ] `GROQ_API_KEY` set only on the backend
 - [ ] `CLIENT_ORIGIN` matches the deployed frontend exactly (scheme + host, no trailing slash)
 - [ ] `VITE_API_URL` points at the deployed backend and the frontend was rebuilt
+- [ ] `https://your-app.vercel.app/api/health` is answered by the backend, not the static host
+  (a 405 or an HTML response means the API URL is missing)
 - [ ] `/api/health` reports `database: connected`
 - [ ] CORS: requests from the deployed frontend succeed; other origins are rejected
 - [ ] No secrets in the repository or in the built bundle (`grep -r "gsk_" client/dist`)
